@@ -103,6 +103,50 @@ var Resource = function (Model, options) {
 
 util.inherits(Resource, EventEmitter);
 
+Resource.prototype.queryByUserId = function (options) {
+  var self = this;
+
+  options = options || {};
+  options.pageSize = options.pageSize || this.options.pageSize;
+  options.projection = options.projection || this.options.listProjection;
+
+  return function (req, res, next) {
+    var query = self.Model.find({userID: req.params.id});
+
+    if (req.query.q) {
+      try {
+        var q = JSON.parse(req.query.q);
+        query = query.where(q);
+      } catch (err) {
+        return res.send(400, { message: 'Query is not a valid JSON object', errors: err });
+      }
+    }
+
+    if (req.query.sort) {
+      query = query.sort(req.query.sort);
+    }
+
+    if (req.query.select) {
+      query = query.select(req.query.select);
+    }
+
+    if (self.options.filter) {
+      query = query.where(self.options.filter(req, res));
+    }
+
+    var page = req.query.page || 0;
+    query.skip(options.pageSize * page);
+    query.limit(options.pageSize);
+
+    async.waterfall([
+      execQuery(query),
+      buildProjections(req, options.projection),
+      emitEvent(self, 'query'),
+      sendData(res)
+    ], next);
+  };
+};
+
 Resource.prototype.query = function (options) {
   var self = this;
 
@@ -134,7 +178,7 @@ Resource.prototype.query = function (options) {
       query = query.where(self.options.filter(req, res));
     }
 
-    var page = req.query.p || 0;
+    var page = req.query.page || 0;
     query.skip(options.pageSize * page);
     query.limit(options.pageSize);
 

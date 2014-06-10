@@ -113,7 +113,7 @@ Resource.prototype.query = function (fieldName, fieldValue, options) {
   return function (req, res, next) {
     
     var conditions = {};
-    if ( !fieldName && !fieldValue ) {
+    if ( fieldName && fieldValue ) {
       conditions[fieldName] = req.params[fieldValue];
     }
     var query = self.Model.find(conditions);
